@@ -1,5 +1,8 @@
 /archive/
 /codegen/
+/figures/
 /logs/
 *.mexw64
 *.prj
+*.pdf
+*.png
