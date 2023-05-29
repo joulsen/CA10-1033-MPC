@@ -1,10 +1,9 @@
-function param = mpc_iteration_initialize(param)
+function param = mpc_initialize(param)
     % MPC_ITERATION_INITIALIZE Constructs the param struct for use in
     % mpc_iteration_base.m
     % Plant system without hot water production
-    param.sys = get_plant("../../Fitting/models/hybrid_model_2seg_2_best.mat", 1);
-    param.msys = get_plant("../../Fitting/models/hybrid_model_2seg_2_best.mat", param.kappa);
-%     deleteproperty(sys)
+    param.sys = get_plant("model.mat", 1);
+    param.msys = get_plant("model.mat", param.kappa);
     % Luenberger observer
     param.L = place(param.sys.A', param.sys.Cy', param.P)';
     % Resample 

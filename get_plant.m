@@ -4,13 +4,6 @@ function sys_plant = get_plant(fname, kappa)
     if kappa > 1
         sys = d2d(sys, sys.Ts * kappa, "zoh");
     end
-%     subplot(1,2,1);
-%     [p1, z1] = pzmap(sys)
-%     pzmap(sys)
-%     sys = d2d(sys, sys.Ts * 20, "zoh");
-%     subplot(1,2,2)
-%     [p2, z2] = pzmap(sys)
-%     pzmap(sys)
     % Initial variables
     nx = size(sys.A, 1) - 1;
     nu = size(sys.B, 2) - 2;
@@ -27,8 +20,5 @@ function sys_plant = get_plant(fname, kappa)
                        "Ts", sys.Ts, ...
                        "nx", nx, "nu", nu, "ny", ny, ...
                        "hotel", "Trivago");
-%     sys_plant.InputName = ["Tin", "Tamb"];
-%     sys_plant.OutputName = ["T_w_r", "T_r"];
-%     sys_plant.StateName = ["T_w1", "T_w2", "T_w3", "T_f", "T_r"];
 end
 
