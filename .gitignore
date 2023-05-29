@@ -1,9 +1,4 @@
 /archive/
 /codegen/
-/logs/*
-*.prj
 *.mexw64
-readme.html
-til_kresten.md
-*.pdf
-*.png
+*.prj
