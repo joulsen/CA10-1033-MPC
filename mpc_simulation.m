@@ -10,7 +10,6 @@ function [u, x, xest, y_C, z] = mpc_simulation(r, d, param, options)
     end
     u = zeros(steps, 1);
     x = zeros(steps, size(sys.A, 1));
-    x(1,:) = param.x0;
     xest = zeros(steps, size(sys.A, 1));
     y_C = zeros(steps, size(sys.Cy, 1));
     z = zeros(steps, size(sys.Cz, 1));
@@ -42,8 +41,6 @@ function [u, x, xest, y_C, z] = mpc_simulation(r, d, param, options)
                 us(k:end) = u0 + deltaU;
             end
         end
-%         deltaU = mpc_iteration_base(x0, ri, di, param, options);
-%         u0 = u0 + deltaU(1);
         u0 = us(k,:);
         u(k,:) = u0;
         % Model
@@ -59,9 +56,6 @@ function [u, x, xest, y_C, z] = mpc_simulation(r, d, param, options)
     function deltaU = mpc_iteration_base(x, r, d, param, options)
         %MPC_ITERATION_BASE Performs a single iteration of the MPC
         if options.MPC_Enabled
-%             [d, Hp_bar] = match_Hp(d, Hp, param.kappa);
-%             Hu_bar = min(param.Hu, Hp_bar);
-%             r = r(1:param.kappa:param.kappa*Hp_bar);
             % Cropping to Hp_bar
             dim = struct("p", size(param.msys.Cz, 1), ...
                          "m", size(param.msys.A, 1), ...
@@ -75,8 +69,6 @@ function [u, x, xest, y_C, z] = mpc_simulation(r, d, param, options)
             R = param.R(1:Hu_bar, 1:Hu_bar);
             H = Theta' * Q * Theta + R;
             H = (H + H')/2;
-%             Eps = r - param.Psi * x - param.Ups * u0 - param.Xi * d;
-%             G = 2*param.Theta' * param.Q * Eps;
             Eps = r - Psi * x - Ups * u0 - Xi * d;
             G = 2*Theta' * Q * Eps;
             [A_con, b_con] = get_lifted_constraints(Hu_bar, u0, d);
@@ -84,9 +76,7 @@ function [u, x, xest, y_C, z] = mpc_simulation(r, d, param, options)
                                   'Display', 'off');
             deltaU = quadprog(2*H, -G', A_con, b_con, ...
                               [],[],[],[],zeros(Hu_bar, 1),qp_opt);
-%             u = u0 + deltaU(1);
         else
-%             u = options.Input_Default;
             deltaU = 0;
         end
         function [mat, Hp_bar] = match_Hp(mat, Hp, kappa)

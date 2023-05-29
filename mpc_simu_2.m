@@ -1,4 +1,3 @@
-addpath("..\..\commoncode\")
 clear mpc_simulation
 
 data = read_bitzer_data("../../BitzerData/Logdata-d-60/HPLog 026.csv", [1, -1]);
@@ -12,7 +11,7 @@ param = struct("Hu", 20, "Hp", 25, ...
                "x0", [35; 30; 25; -2; 20], ...
                "P", [0.01, 0.02, 0.03, 0.04, 0.05], ...
                "kappa", 30);
-param.u0 = 30;
+param.u0 = d(1) + param.mu3;
 param.Q = eye(param.Hp);
 param.R = 0.1*eye(param.Hu);
 param = mpc_iteration_initialize(param);
