@@ -3,6 +3,9 @@ function param = mpc_initialize(param)
     % mpc_iteration_base.m
     % Plant system without hot water production
     param.sys = get_plant("model.mat", 1);
+    param.psys = get_plant("model.mat", 1);
+%     param.psys.A(2,3) = param.psys.A(2,3) - 1e-4;
+%     param.sys.A(2,3) = param.sys.A(2,3) - 1e-4;
     param.msys = get_plant("model.mat", param.kappa);
     % Luenberger observer
     param.L = place(param.sys.A', param.sys.Cy', param.P)';

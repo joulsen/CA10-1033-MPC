@@ -8,12 +8,14 @@ function [log] = mpc_base(param, options)
     clear get_price
     clear get_price_historical
     sys = param.sys;
+    psys = param.psys;
     u = param.u0;
     x = param.x0;
     y = sys.Cy * x;
     x_est = param.x0;
     z = [0, 0];
     k = 0;
+    ke = 0;
     mpc_period_start = 1;
     dim = struct("p", size(param.msys.Cz, 1), ...
                  "m", size(param.msys.A, 1), ...
@@ -39,6 +41,7 @@ function [log] = mpc_base(param, options)
                  "z",     [z; nan(T_RUN, dim.p)], ...
                  "d",     [0; nan(T_RUN, 1)], ...
                  "d2",    [0; nan(T_RUN, 1)], ...
+                 "d2bar", [0; nan(T_RUN, 1)], ...
                  "Hp",    [0; nan(T_RUN, 1)]);
     %% Main control loop
     try
@@ -53,32 +56,61 @@ function [log] = mpc_base(param, options)
         % Disturbance is ambient temperature for every minute in a vector.
         % Length must be at least Kappa.
         if options.Simulation
-            d = get_forecast_historical(1000, times(k), options.SimulationEndDate);
-            d2 = get_price_historical(times(k), options);
+            d = get_forecast_historical(2200, times(k), options.SimulationEndDate);
+            [d2, ke] = get_price_historical(times(k), options);
         else
-            d = get_forecast(1000);
+            d = get_forecast(2200);
             d2 = get_price(datetime("now", "TimeZone", "UTC"));
         end
+        log.d2(k, :) = d2(k);
+        if ~options.PriceOn
+            d2 = zeros(T_RUN, 1);
+            ke = param.Hp * param.kappa;
+        end
 %         d2 = rmmissing(d2);
-        d2 = d2(~isnan(d2));
+%         d2 = d2(~isnan(d2));
         %% Controller
         if (~mod(k-1, param.kappa))
             mpc_period_start = k;
             l1 = floor(size(rmmissing(d), 1));
-            l2 = floor(size(rmmissing(d2), 1));
-            Hp_bar = min(min(param.Hp, l1  / param.kappa), ...
-                         min(param.Hp, l2 / param.kappa));
+            if options.Simulation
+                Hp_bar = min(param.Hp, ke / param.kappa);
+                Hp_bar = min(Hp_bar, l1 / param.kappa);
+            else
+                l2 = floor(size(rmmissing(d2), 1));
+                Hp_bar = min(min(param.Hp, l1  / param.kappa), ...
+                             min(param.Hp, l2 / param.kappa));
+            end
             Hp_bar=floor(Hp_bar);
             Hu_bar = min(param.Hu, Hp_bar);
             dbar = d(1:param.kappa:Hp_bar*param.kappa);
-            d2bar = d2(1:param.kappa:Hp_bar*param.kappa);
+            if options.Simulation
+                iend = min(k+Hp_bar*param.kappa-1, k+ke-1);
+                d2bar = d2(k:param.kappa:iend);
+            else
+                d2bar = d2(1:param.kappa:Hp_bar*param.kappa);
+            end
+            if (options.PriceNormalisation ~= "none" && options.PriceOn)
+                if options.PriceNormalisation == "squish"
+                    d2bar = (d2bar - min(d2bar));
+                    if ~any(d2bar)
+                        d2bar = ones(size(d2bar));
+                    else
+                        d2bar = d2bar / max(d2bar);
+                    end
+                elseif options.PriceNormalisation == "mean"
+                    d2bar = d2bar - mean(d2bar) + options.NormMean;
+                elseif options.PriceNormalisation == "cap"
+                    d2bar = min(max(d2bar, options.NormMin), options.NormMax);
+                end
+            end
             rmask = [1; zeros(param.kappa-1, 1)];
             rmask = kron(rmask, ones(dim.p, 1));
             rmask = kron(ones(Hp_bar, 1), rmask) == 1;
             rbar = r(rmask);
             price_Q = ones(Hp_bar * dim.p, 1);
             price_Q(1:dim.p:end) = param.alpha1;
-            price_Q(2:dim.p:end) = d2bar * param.beta1;
+            price_Q(2:dim.p:end) = d2bar.^2 * param.beta1;
             param.Q = diag(price_Q);
             if Hp_bar == 0
                 error("Error: No values in disturbance vector.")
@@ -111,10 +143,10 @@ function [log] = mpc_base(param, options)
         y_est = sys.Cy * x_est + sys.Dy * u + sys.Ddy * d(1);
         x_est = sys.A*x_est + param.L*(y-y_est) + sys.B * u + sys.Bd * d(1);
         % Model
-        x = sys.A * x + sys.B * u + sys.Bd * d(1,:)';
-        z = sys.Cz * x + sys.Dz * u + sys.Ddz * d(1,:)';
+        x = psys.A * x + psys.B * u + psys.Bd * d(1,:)';
+        z = psys.Cz * x + psys.Dz * u + psys.Ddz * d(1,:)';
         if options.Simulation
-            y = sys.Cy * x + sys.Dy * u + sys.Ddy * d(1,:)';
+            y = psys.Cy * x + psys.Dy * u + psys.Ddy * d(1,:)';
         end
         % Logging
         log.x(k, :) = x';
@@ -123,7 +155,7 @@ function [log] = mpc_base(param, options)
         log.y(k, :) = y;
         log.z(k, :) = z;
         log.d(k, :) = d(1);
-        log.d2(k, :) = d2(1);
+        log.d2bar(k, :) = d2bar(1);
         log.Hp(k) = Hp_bar;
         if (options.Logging && ~mod(k, options.LoggingInterval))
             now = datetime("now", "Format", "yyyy_MM_dd_HH.mm");

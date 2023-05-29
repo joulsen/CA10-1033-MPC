@@ -1,7 +1,7 @@
-function d = get_price_historical(time, options)
+function [d, ke] = get_price_historical(time, options)
 %GET_PRICE_HISTORICAL Summary of this function goes here
 %   Detailed explanation goes here
-    persistent w k kn webopt pricetime_utc pricetime_dk realtime price
+    persistent w k kn kep webopt pricetime_utc pricetime_dk realtime price
     if (isempty(webopt))
         webopt = weboptions("Timeout", 20);
     end
@@ -19,7 +19,7 @@ function d = get_price_historical(time, options)
         price = struct2table(price.records);
         pricetime_utc = datetime(price.HourUTC, "InputFormat", 'yyyy-MM-dd''T''HH:mm:ss');
         pricetime_dk = datetime(price.HourDK, "InputFormat", 'yyyy-MM-dd''T''HH:mm:ss');
-        realtime = time:minutes(1):enddate;
+        realtime = startdate:minutes(1):enddate;
         spids_hour = any(hour(pricetime_dk) == [17, 18, 19, 20], 2);
         spids_mon = any(month(pricetime_dk) == [1, 2, 3, 10, 11, 12], 2);
         spids_mask = all([spids_hour, spids_mon], 2);
@@ -45,15 +45,19 @@ function d = get_price_historical(time, options)
         else
             t1 = t1 + hours(24);
         end
+        kep = ceil(minutes(t1 - time) + 60);
         kn = ceil(minutes(t0 + hours(24) - time));
-        sm = all([t0 <= pricetime_dk, pricetime_dk <= t1], 2);
+        sm = all([t0 <= pricetime_utc, pricetime_utc <= t1], 2);
         price_i = price(sm);
-        price_i = [price_i; price_i(1)];
+        price_i = [price_i(1); price_i];
         pricetime_utc_i = pricetime_utc(sm);
-        pricetime_utc_i = [pricetime_utc_i; pricetime_utc_i(1) + hours(1)];
+        pricetime_utc_i = [pricetime_utc_i(1) + hours(1); pricetime_utc_i];
         w = interp1(pricetime_utc_i, price_i, realtime, "previous")';
     end
-    d = w(k:end);
+%     d = w(k:end);
+    d = w;
+    ke = kep;
+    kep = kep - 1;
     k = k + 1;
 end
 

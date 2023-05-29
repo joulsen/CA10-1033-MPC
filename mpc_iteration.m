@@ -25,6 +25,10 @@ function deltaU = mpc_iteration(x, u, r, d, Hp_bar, Hu_bar, param, options)
         [A_con, b_con] = get_lifted_constraints(Hu_bar, Hp_bar, u, d, rm, Z, TL);
         [deltaU, ~, exitflag] = quadprog(2*H, -G', A_con, b_con, ...
                                 [],[],[],[],zeros(Hu_bar, 1),options.qp_opt);
+        warnMsg = lastwarn;
+        if ~isempty(warnMsg)
+            disp("")
+        end
         if exitflag ~= 1
             if exitflag == -2
                 warning("Constraints have been violated. Default input is set")
