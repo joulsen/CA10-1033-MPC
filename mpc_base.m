@@ -24,10 +24,11 @@ z = 0;
 mpc_period_start = 1;
 
 % Logging variables
-T_RUN = 60*24*60*60; % Allocating memory for 60 days for efficiency
+T_RUN = 60*24*365; % Allocating memory for 1 year for efficiency
 u_log = [u; nan(T_RUN, 1)];
 y_log = [y; nan(T_RUN, 1)];
 x_log = [x'; nan(T_RUN, size(x, 1))];
+x_est_log = [x_est'; nan(T_RUN, size(x_est, 1))];
 z_log = [z; nan(T_RUN, 1)];
 d_log = [0; nan(T_RUN, 1)];
 %% Control loop
@@ -49,8 +50,10 @@ while true
     % Measurement of the return temperature
     % <- INSERT ->
     % y = ...
-    y_est = sys.Cy * x + sys.Dy * u + sys.Ddy * d(1);
-    x_est = sys.A * (x + + param.L*(y - y_est)) + sys.B * u + sys.Bd * d(1);
+    y_est = sys.Cy * x_est + sys.Dy * u + sys.Ddy * d(1);
+    x_est = sys.A * x_est + param.L*(y - y_est) + sys.B * u + sys.Bd * d(1);
+    disp(x)
+    disp(x_est)
     %% Controller
     if (~mod(k-1, param.kappa))
         mpc_period_start = k;
@@ -76,6 +79,7 @@ while true
     % <- INSERT ->
     % Logging
     x_log(k, :) = x';
+    x_est_log(k, :) = x_est';
     u_log(k, :) = u;
     y_log(k, :) = y;
     z_log(k, :) = z;

@@ -1,4 +1,5 @@
 /archive/
 /codegen/
+/logs/
 *.mexw64
 *.prj
