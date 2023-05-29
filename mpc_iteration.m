@@ -18,13 +18,13 @@ function deltaU = mpc_iteration(x, u, r, d, Hp_bar, Hu_bar, param, options)
         R = param.R(1:Hu_bar, 1:Hu_bar);
         H = TL' * Q * TL + R;
         H = (H + H')/2;
-        Eps = r - Psi * x - TE * u - Xi * d;
+        Z = Psi * x + TE * u + Xi * d;
+        Eps = r - Z;
         G = 2*TL' * Q * Eps;
-        [A_con, b_con] = get_lifted_constraints(Hu_bar, u, d);
-        qp_opt = optimoptions('quadprog', 'Algorithm', 'active-set', ...
-                              'Display', 'off');
+        rm = movmean(r(1:2:end), [param.mu5, 0]);
+        [A_con, b_con] = get_lifted_constraints(Hu_bar, Hp_bar, u, d, rm, Z, TL);
         [deltaU, ~, exitflag] = quadprog(2*H, -G', A_con, b_con, ...
-                                [],[],[],[],zeros(Hu_bar, 1),qp_opt);
+                                [],[],[],[],zeros(Hu_bar, 1),options.qp_opt);
         if exitflag ~= 1
             if exitflag == -2
                 warning("Constraints have been violated. Default input is set")
@@ -36,7 +36,7 @@ function deltaU = mpc_iteration(x, u, r, d, Hp_bar, Hu_bar, param, options)
     else
         deltaU = 0;
     end
-    function [A_con, b_con] = get_lifted_constraints(Hu, u0, d)
+    function [A_con, b_con] = get_lifted_constraints(Hu, Hp, u0, d, rm, Z, TL)
         nu = 1;
         nf = 3;
         % Input constraint F
@@ -45,6 +45,12 @@ function deltaU = mpc_iteration(x, u, r, d, Hp_bar, Hu_bar, param, options)
         f2 = kron(eye(Hu), [0; 0; 1]) * d(1:Hu);
         f = f1+f2;
         F = [F, f];
+        % Output constraint G = [Gf, gff]
+        gff = nan(2*size(rm, 1), 1);
+        gff(1:2:end) = rm;
+        gff(2:2:end) = -rm;
+        gff = gff - param.mu6;
+        Gf = kron(eye(Hp), [-1, 0; 1, 0]);
         % Input rate constrain E = [W w]
         W = [eye(Hu); -eye(Hu)];
         w = [ones(Hu, 1); ones(Hu, 1)] * param.mu4 * param.kappa;
@@ -58,7 +64,9 @@ function deltaU = mpc_iteration(x, u, r, d, Hp_bar, Hu_bar, param, options)
             end
             calF(:,i) = calFi;
         end
-        A_con = [calF; W];
-        b_con = [-calF(:,1:nu) * u0 - f; w];
+        A_con = [calF; Gf*TL; W];
+        b_con = [-calF(:,1:nu) * u0 - f; -Gf*Z-gff; w];
+%         A_con = [calF; W];
+%         b_con = [-calF(:,1:nu) * u0 - f; w];
     end
 end

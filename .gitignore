@@ -1,8 +1,12 @@
 /archive/
 /codegen/
 /figures/
+/lmtclient/
+LMTClientClass.m
 /logs/
+mpc_beta_iteration.mat
 *.mexw64
 *.prj
 *.pdf
 *.png
+*.bak
