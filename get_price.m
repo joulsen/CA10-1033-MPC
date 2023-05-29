@@ -1,11 +1,22 @@
-function d = get_price_historical(limit, startdate, enddate)
+function d = get_price(limit)
 %GET_PRICE_HISTORICAL Summary of this function goes here
 %   Detailed explanation goes here
-    persistent w k
-    if (isempty(w))
+    persistent w k kn
+    if (isempty(w) || k > kn)
         k = 1;
         url = "https://api.energidataservice.dk/dataset/Elspotprices?offset=0&start=%sT00:00&end=%sT00:00%s";
         extra = "&filter=%7B%22PriceArea%22:[%22DK1%22]%7D&sort=HourUTC%20DESC&timezone=dk";
+        startdate = datetime("now");
+        enddate = startdate + hours(48);
+        % Determining next run time
+        next = startdate;
+        next.Hour = 13;
+        next.Minute = 0;
+        next.Second = 0;
+        if hour(startdate) > 13
+            next = next + hours(24);
+        end
+        kn = ceil(minutes(next - startdate));
         startdate.Format = 'yyyy-MM-dd';
         enddate.Format = 'yyyy-MM-dd';
         price = webread(sprintf(url, startdate, enddate + days(1), extra), ...

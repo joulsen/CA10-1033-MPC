@@ -8,10 +8,9 @@ function param = mpc_initialize(param)
     param.L = place(param.sys.A', param.sys.Cy', param.P)';
     % Resample 
     % Construct lifted input matrices
-    [param.Psi, param.Theta, param.Ups, param.Xi] = get_lifted(param.msys, param.Hp, param.Hu);
-    param.H = param.Theta' * param.Q * param.Theta + param.R;
-    param.H = (param.H + param.H')/2;
-    function [Psi, Theta, Ups, Xi] = get_lifted(sys, Hp, Hu)
+    [param.Psi, param.Theta, param.Ups, ...
+     param.Xi, param.Lambda, param.LambdaD] = get_lifted(param.msys, param.Hp, param.Hu);
+    function [Psi, Theta, Ups, Xi, Lambda, LambdaD] = get_lifted(sys, Hp, Hu)
         calA = cell([Hp, 1]);
         for i=1:Hp
             calA{i} = sys.A^i;
@@ -45,6 +44,8 @@ function param = mpc_initialize(param)
             column = circshift(column, 1);
         end
         Xi = cell2mat(Xi);
+        Lambda = kron(ones(Hp, 1), sys.Dz);
+        LambdaD = kron(tril(ones(Hp, Hu)), sys.Dz);
     end
 end
 

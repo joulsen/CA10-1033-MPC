@@ -10,17 +10,29 @@ function deltaU = mpc_iteration(x, u, r, d, Hp_bar, Hu_bar, param, options)
         Ups = param.Ups(1:dim.p*Hp_bar, :);
         Theta = param.Theta(1:dim.p*Hp_bar, 1:dim.n*Hu_bar);
         Xi = param.Xi(1:dim.p*Hp_bar, 1:dim.j*Hp_bar);
-        Q = param.Q(1:Hp_bar, 1:Hp_bar);
+        Lambda = param.Lambda(1:dim.p*Hp_bar, :);
+        LambdaD = param.LambdaD(1:dim.p*Hp_bar, 1:dim.n*Hu_bar);
+        TE = Ups + Lambda;
+        TL = Theta + LambdaD;
+        Q = param.Q(1:dim.p*Hp_bar, 1:dim.p*Hp_bar);
         R = param.R(1:Hu_bar, 1:Hu_bar);
-        H = Theta' * Q * Theta + R;
+        H = TL' * Q * TL + R;
         H = (H + H')/2;
-        Eps = r - Psi * x - Ups * u - Xi * d;
-        G = 2*Theta' * Q * Eps;
+        Eps = r - Psi * x - TE * u - Xi * d;
+        G = 2*TL' * Q * Eps;
         [A_con, b_con] = get_lifted_constraints(Hu_bar, u, d);
         qp_opt = optimoptions('quadprog', 'Algorithm', 'active-set', ...
                               'Display', 'off');
-        deltaU = quadprog(2*H, -G', A_con, b_con, ...
-                          [],[],[],[],zeros(Hu_bar, 1),qp_opt);
+        [deltaU, ~, exitflag] = quadprog(2*H, -G', A_con, b_con, ...
+                                [],[],[],[],zeros(Hu_bar, 1),qp_opt);
+        if exitflag ~= 1
+            if exitflag == -2
+                warning("Constraints have been violated. Default input is set")
+            else
+                warning("Quadratic problem does not produce solution. Default input is set")
+            end
+            deltaU = param.u_fallback - u;
+        end
     else
         deltaU = 0;
     end
